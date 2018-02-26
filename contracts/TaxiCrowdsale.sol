@@ -3,9 +3,15 @@ pragma solidity ^0.4.18;
 import 'zeppelin-solidity/contracts/crowdsale/distribution/FinalizableCrowdsale.sol';
 import "zeppelin-solidity/contracts/crowdsale/emission/MintedCrowdsale.sol";
 import 'zeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
+import 'zeppelin-solidity/contracts/lifecycle/Pausable.sol';
 import './TaxiToken.sol';
 
-contract TaxiCrowdsale is FinalizableCrowdsale, MintedCrowdsale {
+/*
+  Taxi crowdsale is Pausable contract it is paused on init
+  and may be paused any time in the process. While it is paused
+  it can finalized meaning all left tokens will be assigned to owner wallet
+*/
+contract TaxiCrowdsale is MintedCrowdsale, Pausable {
 
   uint256 private constant TOKENS_RATE_CHANGE_STEP = 50000000 * 10**18;
   uint256 private constant INIT_RATE = 11500 * 10**18;
@@ -15,12 +21,22 @@ contract TaxiCrowdsale is FinalizableCrowdsale, MintedCrowdsale {
   uint256 private leftovers = 250000000 * 10**18;
   uint256 private toSellTillNextStep = TOKENS_RATE_CHANGE_STEP;
 
-  function TaxiCrowdsale(address _wallet, TaxiToken _token, uint256 _openingTime, uint256 _closingTime) public
-    Crowdsale(INIT_RATE, _wallet, _token)
-    TimedCrowdsale(_openingTime, _closingTime) {
+  bool public isFinalized = false;
+
+  event Finalized();
+
+  modifier notFinished() {
+    require(leftovers > 0);
+    require(!isFinalized);
+    _;
   }
 
-  function _preValidatePurchase(address _beneficiary, uint256 _weiAmount) internal {
+  function TaxiCrowdsale(address _wallet, TaxiToken _token) public
+    Crowdsale(INIT_RATE, _wallet, _token) {
+      paused = true;
+  }
+
+  function _preValidatePurchase(address _beneficiary, uint256 _weiAmount) whenNotPaused notFinished internal {
     super._preValidatePurchase(_beneficiary, _weiAmount);
     require(leftovers > 0);
   }
@@ -38,32 +54,31 @@ contract TaxiCrowdsale is FinalizableCrowdsale, MintedCrowdsale {
     uint256 _weiLeft = _weiAmount;
     uint256 _tokensToSend = 0;
 
-    while (_tokens > 0 && leftovers > 0 && _weiLeft > 0) {
-      if (toSellTillNextStep.sub(_tokens) < 0 && leftovers.sub(_tokens) > 0) {
-          _tokens = _tokens.sub(toSellTillNextStep);
-          leftovers = leftovers.sub(toSellTillNextStep);
+    while (leftovers > 0 && _weiLeft > 0) {
+      uint256 _stepTokens = 0;
 
-          _tokensToSend = _tokensToSend.add(toSellTillNextStep);
-          _weiReq = toSellTillNextStep.div(rate);
-          _weiLeft = _weiLeft.sub(_weiReq);
-
+      if (toSellTillNextStep.sub(_tokens) < 0) {
+          _stepTokens = toSellTillNextStep;
           toSellTillNextStep = TOKENS_RATE_CHANGE_STEP;
+
           rate = rate.sub(RATE_STEP);
           if (rate < MIN_RATE) {
             rate = MIN_RATE;
           }
+      } else if (leftovers.sub(_tokens) > 0) {
+        _stepTokens = _tokens;
+        toSellTillNextStep = toSellTillNextStep.sub(_tokens);
       } else {
-        uint256 _leftovers = leftovers;
-        if (_tokens < leftovers) {
-          _leftovers = _tokens;
-        }
-        _tokens = _tokens.sub(_leftovers);
-        leftovers = leftovers.sub(_leftovers);
-
-        _tokensToSend = _tokensToSend.add(_leftovers);
-        _weiReq = _leftovers.div(rate);
-        _weiLeft = _weiLeft.sub(_weiReq);
+        _stepTokens = leftovers;
+        toSellTillNextStep = toSellTillNextStep.sub(leftovers);
       }
+
+      _tokensToSend = _tokensToSend.add(_stepTokens);
+      _weiReq = _stepTokens.div(rate);
+      _weiAmount = _weiAmount.sub(_weiReq);
+      leftovers = leftovers.sub(_stepTokens);
+
+      _tokens = _weiAmount.mul(rate);
     }
 
     //TODO: check if this really transfers as required and msg.value changes and if forwardFunds needed
@@ -76,10 +91,16 @@ contract TaxiCrowdsale is FinalizableCrowdsale, MintedCrowdsale {
 
   }
 
-  function finalization() internal {
-    if (leftovers > 0) {
-      wallet.transfer(leftovers);
-    }
+  function finalize() onlyOwner whenPaused public {
+    require(!isFinalized);
+
+    finalization();
+    Finalized();
+
+    isFinalized = true;
   }
 
+  function finalization() internal {
+    require(MintableToken(token).mint(wallet, leftovers));
+  }
 }
