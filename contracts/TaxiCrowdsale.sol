@@ -1,8 +1,6 @@
 pragma solidity ^0.4.18;
 
-import 'zeppelin-solidity/contracts/crowdsale/distribution/FinalizableCrowdsale.sol';
 import "zeppelin-solidity/contracts/crowdsale/emission/MintedCrowdsale.sol";
-import 'zeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
 import 'zeppelin-solidity/contracts/lifecycle/Pausable.sol';
 import './TaxiToken.sol';
 
@@ -12,13 +10,14 @@ import './TaxiToken.sol';
   it can finalized meaning all left tokens will be assigned to owner wallet
 */
 contract TaxiCrowdsale is MintedCrowdsale, Pausable {
+  using SafeMath for uint256;
 
-  uint256 private constant TOKENS_RATE_CHANGE_STEP = 50000000 * 10**18;
-  uint256 private constant INIT_RATE = 11500 * 10**18;
-  uint256 private constant MIN_RATE = 10000 * 10**18;
-  uint256 private constant RATE_STEP = 500 * 10**18;
+  uint256 private constant TOKENS_RATE_CHANGE_STEP = 50 * 10**24;
+  uint256 private constant INIT_RATE = 11500;
+  uint256 private constant MIN_RATE = 10000;
+  uint256 private constant RATE_STEP = 500;
 
-  uint256 private leftovers = 250000000 * 10**18;
+  uint256 private leftovers = 250 * 10**24;
   uint256 private toSellTillNextStep = TOKENS_RATE_CHANGE_STEP;
 
   bool public isFinalized = false;
@@ -36,9 +35,9 @@ contract TaxiCrowdsale is MintedCrowdsale, Pausable {
       paused = true;
   }
 
-  function _preValidatePurchase(address _beneficiary, uint256 _weiAmount) whenNotPaused notFinished internal {
+  function _preValidatePurchase(address _beneficiary, uint256 _weiAmount) notFinished whenNotPaused internal {
     super._preValidatePurchase(_beneficiary, _weiAmount);
-    require(leftovers > 0);
+    require(_weiAmount > 0);
   }
 
   function _getTokenAmount(uint256 _weiAmount) internal view returns (uint256) {
@@ -101,6 +100,7 @@ contract TaxiCrowdsale is MintedCrowdsale, Pausable {
   }
 
   function finalization() internal {
-    require(MintableToken(token).mint(wallet, leftovers));
+    require(TaxiToken(token).mint(wallet, leftovers));
+    TaxiToken(token).transferOwnership(wallet);
   }
 }

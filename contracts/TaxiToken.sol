@@ -10,11 +10,13 @@ import 'zeppelin-solidity/contracts/token/ERC20/PausableToken.sol';
 */
 contract TaxiToken is CappedToken, PausableToken {
 
+  uint256 private constant TOKEN_CAP = 500 * 10**24;
+
   string public constant name = "TaxiToken";
   string public constant symbol = "TAXI";
   uint8 public constant decimals = 18;
 
-  function TaxiToken(uint256 _cap) public CappedToken(_cap) {
+  function TaxiToken() public CappedToken(TOKEN_CAP) {
     paused = true;
   }
 }
