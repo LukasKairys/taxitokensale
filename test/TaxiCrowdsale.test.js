@@ -9,7 +9,6 @@ const TaxiToken = artifacts.require("./TaxiToken")
 const TaxiCrowdsale = artifacts.require("./TaxiCrowdsale");
 
 contract('TaxiCrowdsaleTest', function (accounts) {
-
   let investor = accounts[0];
   let wallet = accounts[1];
   let purchaser = accounts[2];
@@ -28,7 +27,7 @@ contract('TaxiCrowdsaleTest', function (accounts) {
           await this.crowdsale.send(ether(10));
           assert.fail('Expected reject not received');
       } catch (error) {
-        assert(error.message.search('invalid opcode') > 0, 'Wrong error message received: ' + error.message);
+        assert(error.message.search('revert') > 0, 'Wrong error message received: ' + error.message);
       }
     });
 
@@ -51,7 +50,7 @@ contract('TaxiCrowdsaleTest', function (accounts) {
           await this.crowdsale.send(ether(1));
           assert.fail('Expected reject not received');
       } catch (error) {
-        assert(error.message.search('invalid opcode') > 0, 'Wrong error message received: ' + error.message);
+        assert(error.message.search('revert') > 0, 'Wrong error message received: ' + error.message);
       }
     });
 
@@ -63,7 +62,7 @@ contract('TaxiCrowdsaleTest', function (accounts) {
           await this.crowdsale.send(ether(0));
           assert.fail('Expected reject not received');
       } catch (error) {
-        assert(error.message.search('invalid opcode') > 0, 'Wrong error message received: ' + error.message);
+        assert(error.message.search('revert') > 0, 'Wrong error message received: ' + error.message);
       }
     });
   });
@@ -80,11 +79,58 @@ contract('TaxiCrowdsaleTest', function (accounts) {
     it('should reveive correct amount (11000) of tokens when sending 1 ether for the 2\'nd wave', async function () {
       this.crowdsale.should.exist;
       await this.crowdsale.unpause();
-      await this.crowdsale.buyTokens(wallet, { value: ether(4400), from: purchaser });
+      await this.crowdsale.buyTokens(wallet, { value: ether(5000), from: purchaser });
 
       await this.crowdsale.buyTokens(investor, { value: ether(1), from: purchaser });
       const balance = await this.token.balanceOf(investor);
       balance.should.be.bignumber.equal(11000e18);
+    });
+
+    it('should reveive correct amount (10500) of tokens when sending 1 ether for the 3\'rd wave', async function () {
+      this.crowdsale.should.exist;
+      await this.crowdsale.unpause();
+      await this.crowdsale.buyTokens(wallet, { value: ether(10000), from: purchaser });
+
+      await this.crowdsale.buyTokens(investor, { value: ether(1), from: purchaser });
+      const balance = await this.token.balanceOf(investor);
+      balance.should.be.bignumber.equal(10500e18);
+    });
+
+    it('should reveive correct amount (10000) of tokens when sending 1 ether for the 4\'th wave', async function () {
+      this.crowdsale.should.exist;
+      await this.crowdsale.unpause();
+      await this.crowdsale.buyTokens(wallet, { value: ether(15000), from: purchaser });
+
+      await this.crowdsale.buyTokens(investor, { value: ether(1), from: purchaser });
+      const balance = await this.token.balanceOf(investor);
+      balance.should.be.bignumber.equal(10000e18);
+    });
+
+    it('should reveive correct amount (10000) of tokens when sending 1 ether for the bellow 4\'th wave', async function () {
+      this.crowdsale.should.exist;
+      await this.crowdsale.unpause();
+      await this.crowdsale.buyTokens(wallet, { value: ether(22000), from: purchaser });
+
+      await this.crowdsale.buyTokens(investor, { value: ether(1), from: purchaser });
+      const balance = await this.token.balanceOf(investor);
+      balance.should.be.bignumber.equal(10000e18);
+    });
+
+/*    it('should return when send too much ether', async function () {
+      this.crowdsale.should.exist;
+      await this.crowdsale.unpause();
+      await this.crowdsale.buyTokens(wallet, { value: ether(25000), from: purchaser });
+    });*/
+  });
+
+  describe('receive funds', function () {
+    it('should forward funds to wallet', async function () {
+      this.crowdsale.should.exist;
+      await this.crowdsale.unpause();
+      const pre = web3.eth.getBalance(wallet);
+      await this.crowdsale.buyTokens(investor, { value: ether(10), from: purchaser });
+      const post = web3.eth.getBalance(wallet);
+      post.minus(pre).should.be.bignumber.equal(ether(10));
     });
   });
 
@@ -126,7 +172,7 @@ contract('TaxiCrowdsaleTest', function (accounts) {
           await this.crowdsale.finalize();
           assert.fail('Expected reject not received');
       } catch (error) {
-        assert(error.message.search('invalid opcode') > 0, 'Wrong error message received: ' + error.message);
+        assert(error.message.search('revert') > 0, 'Wrong error message received: ' + error.message);
       }
     });
   });

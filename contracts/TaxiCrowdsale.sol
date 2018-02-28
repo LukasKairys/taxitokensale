@@ -42,52 +42,53 @@ contract TaxiCrowdsale is MintedCrowdsale, Pausable {
 
   function _getTokenAmount(uint256 _weiAmount) internal view returns (uint256) {
     uint256 _tokens = _weiAmount.mul(rate);
-
-    if (toSellTillNextStep.sub(_tokens) > 0 && leftovers.sub(_tokens) > 0) {
+    if (toSellTillNextStep > _tokens && leftovers > _tokens) {
       toSellTillNextStep = toSellTillNextStep.sub(_tokens);
       leftovers = leftovers.sub(_tokens);
       return _tokens;
     }
 
     uint256 _weiReq = 0;
-    uint256 _weiLeft = _weiAmount;
     uint256 _tokensToSend = 0;
 
-    while (leftovers > 0 && _weiLeft > 0) {
+    while (leftovers > 0 && _weiAmount > 0) {
       uint256 _stepTokens = 0;
 
-      if (toSellTillNextStep.sub(_tokens) < 0) {
+      if (toSellTillNextStep < _tokens) {
           _stepTokens = toSellTillNextStep;
           toSellTillNextStep = TOKENS_RATE_CHANGE_STEP;
+          _weiReq = _stepTokens.div(rate);
+          _weiAmount = _weiAmount.sub(_weiReq);
 
           rate = rate.sub(RATE_STEP);
           if (rate < MIN_RATE) {
             rate = MIN_RATE;
           }
-      } else if (leftovers.sub(_tokens) > 0) {
+      } else if (leftovers > _tokens) {
         _stepTokens = _tokens;
         toSellTillNextStep = toSellTillNextStep.sub(_tokens);
+        _weiReq = _stepTokens.div(rate);
+        _weiAmount = _weiAmount.sub(_weiReq);
       } else {
         _stepTokens = leftovers;
         toSellTillNextStep = toSellTillNextStep.sub(leftovers);
+        _weiReq = _stepTokens.div(rate);
+        _weiAmount = _weiAmount.sub(_weiReq);
       }
 
       _tokensToSend = _tokensToSend.add(_stepTokens);
-      _weiReq = _stepTokens.div(rate);
-      _weiAmount = _weiAmount.sub(_weiReq);
       leftovers = leftovers.sub(_stepTokens);
 
       _tokens = _weiAmount.mul(rate);
     }
 
     //TODO: check if this really transfers as required and msg.value changes and if forwardFunds needed
-    if (_weiLeft > 0) {
-      weiRaised = weiRaised.sub(_weiLeft);
-      msg.sender.transfer(_weiLeft);
+    //TODO: cant set raisedWei here - since it might be 0 here. Need to think of other way.
+    if (_weiAmount > 0) {
+      msg.sender.transfer(_weiAmount);
     }
 
     return _tokensToSend;
-
   }
 
   function finalize() onlyOwner whenPaused public {
