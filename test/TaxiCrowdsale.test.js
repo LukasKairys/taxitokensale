@@ -71,7 +71,7 @@ contract('TaxiCrowdsaleTest', function (accounts) {
     it('should reveive correct amount (11500) of tokens when sending 1 ether for the 1\'st wave', async function () {
       this.crowdsale.should.exist;
       await this.crowdsale.unpause();
-      await this.crowdsale.buyTokens(investor, { value: ether(1), from: purchaser });
+      await this.crowdsale.buyTokens(investor, { value: ether(1) });
       const balance = await this.token.balanceOf(investor);
       balance.should.be.bignumber.equal(11500e18);
     });
@@ -79,9 +79,9 @@ contract('TaxiCrowdsaleTest', function (accounts) {
     it('should reveive correct amount (11000) of tokens when sending 1 ether for the 2\'nd wave', async function () {
       this.crowdsale.should.exist;
       await this.crowdsale.unpause();
-      await this.crowdsale.buyTokens(wallet, { value: ether(5000), from: purchaser });
+      await this.crowdsale.buyTokens(wallet, { value: ether(5000) });
 
-      await this.crowdsale.buyTokens(investor, { value: ether(1), from: purchaser });
+      await this.crowdsale.buyTokens(investor, { value: ether(1) });
       const balance = await this.token.balanceOf(investor);
       balance.should.be.bignumber.equal(11000e18);
     });
@@ -89,9 +89,9 @@ contract('TaxiCrowdsaleTest', function (accounts) {
     it('should reveive correct amount (10500) of tokens when sending 1 ether for the 3\'rd wave', async function () {
       this.crowdsale.should.exist;
       await this.crowdsale.unpause();
-      await this.crowdsale.buyTokens(wallet, { value: ether(10000), from: purchaser });
+      await this.crowdsale.buyTokens(wallet, { value: ether(10000) });
 
-      await this.crowdsale.buyTokens(investor, { value: ether(1), from: purchaser });
+      await this.crowdsale.buyTokens(investor, { value: ether(1) });
       const balance = await this.token.balanceOf(investor);
       balance.should.be.bignumber.equal(10500e18);
     });
@@ -99,9 +99,9 @@ contract('TaxiCrowdsaleTest', function (accounts) {
     it('should reveive correct amount (10000) of tokens when sending 1 ether for the 4\'th wave', async function () {
       this.crowdsale.should.exist;
       await this.crowdsale.unpause();
-      await this.crowdsale.buyTokens(wallet, { value: ether(15000), from: purchaser });
+      await this.crowdsale.buyTokens(wallet, { value: ether(15000) });
 
-      await this.crowdsale.buyTokens(investor, { value: ether(1), from: purchaser });
+      await this.crowdsale.buyTokens(investor, { value: ether(1) });
       const balance = await this.token.balanceOf(investor);
       balance.should.be.bignumber.equal(10000e18);
     });
@@ -109,18 +109,12 @@ contract('TaxiCrowdsaleTest', function (accounts) {
     it('should reveive correct amount (10000) of tokens when sending 1 ether for the bellow 4\'th wave', async function () {
       this.crowdsale.should.exist;
       await this.crowdsale.unpause();
-      await this.crowdsale.buyTokens(wallet, { value: ether(22000), from: purchaser });
+      await this.crowdsale.buyTokens(wallet, { value: ether(22000) });
 
-      await this.crowdsale.buyTokens(investor, { value: ether(1), from: purchaser });
+      await this.crowdsale.buyTokens(investor, { value: ether(1) });
       const balance = await this.token.balanceOf(investor);
       balance.should.be.bignumber.equal(10000e18);
     });
-
-/*    it('should return when send too much ether', async function () {
-      this.crowdsale.should.exist;
-      await this.crowdsale.unpause();
-      await this.crowdsale.buyTokens(wallet, { value: ether(25000), from: purchaser });
-    });*/
   });
 
   describe('receive funds', function () {
@@ -128,9 +122,35 @@ contract('TaxiCrowdsaleTest', function (accounts) {
       this.crowdsale.should.exist;
       await this.crowdsale.unpause();
       const pre = web3.eth.getBalance(wallet);
-      await this.crowdsale.buyTokens(investor, { value: ether(10), from: purchaser });
+      await this.crowdsale.buyTokens(investor, { value: ether(10) });
       const post = web3.eth.getBalance(wallet);
       post.minus(pre).should.be.bignumber.equal(ether(10));
+    });
+    it('should not set oveflow if not oveflowed', async function () {
+      this.crowdsale.should.exist;
+      await this.crowdsale.unpause();
+      const pre = web3.eth.getBalance(wallet);
+      await this.crowdsale.buyTokens(investor, { value: ether(15000) });
+
+      const overflowOwner = await this.crowdsale.overflowOwner();
+      overflowOwner.should.be.equal('0x0000000000000000000000000000000000000000');
+
+      const overflowAmount = await this.crowdsale.overflowAmount();
+      overflowAmount.should.be.bignumber.equal(0);
+    });
+    it('should set overflow data if oweflowed', async function () {
+      this.crowdsale.should.exist;
+      await this.crowdsale.unpause();
+      const pre = web3.eth.getBalance(wallet);
+      await this.crowdsale.buyTokens(investor, { value: ether(25000) });
+
+      const overflowOwner = await this.crowdsale.overflowOwner();
+      overflowOwner.should.be.equal(investor);
+
+      const overflowAmount = await this.crowdsale.overflowAmount();
+      overflowAmount.should.be.bignumber.at.most(1.34481460568418e21);
+      overflowAmount.should.be.bignumber.at.least(1.34481460568417e21);
+
     });
   });
 
@@ -150,7 +170,7 @@ contract('TaxiCrowdsaleTest', function (accounts) {
     it('should transfer all left tokens to wallet when finalized', async function () {
       this.crowdsale.should.exist;
       await this.crowdsale.unpause();
-      await this.crowdsale.buyTokens(investor, { value: ether(5), from: purchaser });
+      await this.crowdsale.buyTokens(investor, { value: ether(5) });
       await this.crowdsale.pause();
       await this.crowdsale.finalize();
       const balance = await this.token.balanceOf(wallet);

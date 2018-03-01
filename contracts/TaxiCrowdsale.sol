@@ -22,6 +22,9 @@ contract TaxiCrowdsale is MintedCrowdsale, Pausable {
 
   bool public isFinalized = false;
 
+  address public overflowOwner;
+  uint256 public overflowAmount;
+
   event Finalized();
 
   modifier notFinished() {
@@ -82,10 +85,10 @@ contract TaxiCrowdsale is MintedCrowdsale, Pausable {
       _tokens = _weiAmount.mul(rate);
     }
 
-    //TODO: check if this really transfers as required and msg.value changes and if forwardFunds needed
-    //TODO: cant set raisedWei here - since it might be 0 here. Need to think of other way.
     if (_weiAmount > 0) {
-      msg.sender.transfer(_weiAmount);
+      require(leftovers <= 0);
+      overflowOwner = msg.sender;
+      overflowAmount = _weiAmount;
     }
 
     return _tokensToSend;
