@@ -62,23 +62,16 @@ contract TaxiCrowdsale is MintedCrowdsale, Pausable {
           toSellTillNextStep = TOKENS_RATE_CHANGE_STEP;
           _weiReq = _stepTokens.div(rate);
           _weiAmount = _weiAmount.sub(_weiReq);
-
-          rate = rate.sub(RATE_STEP);
-          if (rate < MIN_RATE) {
-            rate = MIN_RATE;
-          }
-      } else if (leftovers > _tokens) {
-        _stepTokens = _tokens;
-        toSellTillNextStep = toSellTillNextStep.sub(_tokens);
-        _weiReq = _stepTokens.div(rate);
-        _weiAmount = _weiAmount.sub(_weiReq);
+          _calcNextRate();
       } else {
-        _stepTokens = leftovers;
-        toSellTillNextStep = toSellTillNextStep.sub(leftovers);
-        _weiReq = _stepTokens.div(rate);
-        _weiAmount = _weiAmount.sub(_weiReq);
+          _stepTokens = leftovers;
+          if (leftovers > _tokens) {
+            _stepTokens = _tokens;
+          }
+          toSellTillNextStep = toSellTillNextStep.sub(_stepTokens);
+          _weiReq = _stepTokens.div(rate);
+          _weiAmount = _weiAmount.sub(_weiReq);
       }
-
       _tokensToSend = _tokensToSend.add(_stepTokens);
       leftovers = leftovers.sub(_stepTokens);
 
@@ -86,14 +79,29 @@ contract TaxiCrowdsale is MintedCrowdsale, Pausable {
     }
 
     if (_weiAmount > 0) {
-      require(leftovers <= 0);
-      overflowOwner = msg.sender;
-      overflowAmount = _weiAmount;
+      _assignOverlfowData(_weiAmount);
     }
 
     return _tokensToSend;
   }
 
+  function _calcNextRate() internal {
+      rate = rate.sub(RATE_STEP);
+      if (rate < MIN_RATE) {
+        rate = MIN_RATE;
+      }
+  }
+
+  function _assignOverlfowData(uint256 _weiAmount) internal {
+      require(leftovers <= 0);
+      overflowOwner = msg.sender;
+      overflowAmount = _weiAmount;
+  }
+
+  /*
+    This is ripped of from zeppelin contracts, because zeppelin FinalzableCrowdsale
+    contract extends TimedCrowdsale contract and here it is not the case
+  */
   function finalize() onlyOwner whenPaused public {
     require(!isFinalized);
 
