@@ -90,6 +90,7 @@ contract TaxiCrowdsale is MintedCrowdsale, Pausable {
     to investor and it is not weiRaised.
   */
   function _postValidatePurchase(address _beneficiary, uint256 _weiAmount) internal {
+    super._postValidatePurchase(_beneficiary, _weiAmount);
     if (overflowAmount > 0) {
       weiRaised = weiRaised.sub(overflowAmount);
     }
@@ -133,7 +134,7 @@ contract TaxiCrowdsale is MintedCrowdsale, Pausable {
 
     // mint all the dedicated tokens to wallet
     require(taxiToken.mint(wallet, 200 * 10**24));
-    
+
     require(taxiToken.finishMinting());
     taxiToken.transferOwnership(wallet);
   }
