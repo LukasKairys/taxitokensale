@@ -85,6 +85,16 @@ contract TaxiCrowdsale is MintedCrowdsale, Pausable {
     return _tokensToSend;
   }
 
+  /*
+    If overflow happened we dicrease the weiRaised because, those will be returned
+    to investor and it is not weiRaised.
+  */
+  function _postValidatePurchase(address _beneficiary, uint256 _weiAmount) internal {
+    if (overflowAmount > 0) {
+      weiRaised = weiRaised.sub(overflowAmount);
+    }
+  }
+
   function _calcNextRate() internal {
       rate = rate.sub(RATE_STEP);
       if (rate < MIN_RATE) {
@@ -92,6 +102,11 @@ contract TaxiCrowdsale is MintedCrowdsale, Pausable {
       }
   }
 
+  /*
+    If the last tokens where sold and buyer send more ethers than required
+    we save the overflow data. Than it is up to ico raiser to return the oveflowed
+    invested amount to the buyer.
+  */
   function _assignOverlfowData(uint256 _weiAmount) internal {
       require(leftovers <= 0);
       overflowOwner = msg.sender;
@@ -112,7 +127,14 @@ contract TaxiCrowdsale is MintedCrowdsale, Pausable {
   }
 
   function finalization() internal {
-    require(TaxiToken(token).mint(wallet, leftovers));
-    TaxiToken(token).transferOwnership(wallet);
+    TaxiToken taxiToken = TaxiToken(token);
+    // mint all leftovers
+    require(taxiToken.mint(wallet, leftovers));
+
+    // mint all the dedicated tokens to wallet
+    require(taxiToken.mint(wallet, 200 * 10**24));
+    
+    require(taxiToken.finishMinting());
+    taxiToken.transferOwnership(wallet);
   }
 }

@@ -150,7 +150,24 @@ contract('TaxiCrowdsaleTest', function (accounts) {
       const overflowAmount = await this.crowdsale.overflowAmount();
       overflowAmount.should.be.bignumber.at.most(1.34481460568418e21);
       overflowAmount.should.be.bignumber.at.least(1.34481460568417e21);
-
+    });
+    it('should not change weiRaised if not overflowed', async function() {
+      this.crowdsale.should.exist;
+      await this.crowdsale.unpause();
+      const pre = web3.eth.getBalance(wallet);
+      await this.crowdsale.buyTokens(investor, { value: ether(15000) });
+      const weiRaised = await this.crowdsale.weiRaised();
+      weiRaised.should.be.bignumber.equal(ether(15000));
+    });
+    it('should correct weiRaised when overflowed', async function() {
+      this.crowdsale.should.exist;
+      await this.crowdsale.unpause();
+      const pre = web3.eth.getBalance(wallet);
+      await this.crowdsale.buyTokens(investor, { value: ether(25000) });
+      const weiRaised = await this.crowdsale.weiRaised();
+      const overflowAmount = await this.crowdsale.overflowAmount();
+      const totalAmount = weiRaised.plus(overflowAmount);
+      totalAmount.should.be.bignumber.equal(ether(25000));
     });
   });
 
@@ -164,7 +181,7 @@ contract('TaxiCrowdsaleTest', function (accounts) {
       this.crowdsale.should.exist;
       await this.crowdsale.finalize();
       const balance = await this.token.balanceOf(wallet);
-      balance.should.be.bignumber.equal(250e24);
+      balance.should.be.bignumber.equal(450e24);
     });
 
     it('should transfer all left tokens to wallet when finalized', async function () {
@@ -174,7 +191,7 @@ contract('TaxiCrowdsaleTest', function (accounts) {
       await this.crowdsale.pause();
       await this.crowdsale.finalize();
       const balance = await this.token.balanceOf(wallet);
-      balance.should.be.bignumber.equal(249.9425e24);
+      balance.should.be.bignumber.equal(449.9425e24);
     });
 
 
@@ -183,6 +200,13 @@ contract('TaxiCrowdsaleTest', function (accounts) {
       await this.crowdsale.finalize();
       let owner = await this.token.owner();
       owner.should.be.equal(wallet);
+    });
+
+    it('should finish minting when finalized', async function() {
+      this.crowdsale.should.exist;
+      await this.crowdsale.finalize();
+      let mintingFinished = await this.token.mintingFinished();
+      mintingFinished.should.be.equal(true);
     });
 
     it('should not allow finalize when not paused', async function () {
