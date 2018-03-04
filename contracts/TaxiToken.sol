@@ -12,7 +12,7 @@ contract TaxiToken is CappedToken, PausableToken {
 
   uint256 private constant TOKEN_CAP = 500 * 10**24;
 
-  string public constant name = "TaxiToken";
+  string public constant name = "TAXI token";
   string public constant symbol = "TAXI";
   uint8 public constant decimals = 18;
 
